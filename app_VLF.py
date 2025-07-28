@@ -8,6 +8,16 @@ import os
 from datetime import datetime
 from staticmap import StaticMap, CircleMarker
 
+def obtener_template_path(tipo_tramo: str, cantidad_tramos: int) -> str:
+    """
+    Retorna el path del template a usar basado en el tipo de tramo y la cantidad.
+    Ejemplo: 'Trifásicos' y 3 → 'templateVLF3FS3TR.docx'
+             'Monofásicos' y 10 → 'templateVLF1FS10TR.docx'
+    """
+    fases = "3FS" if tipo_tramo == "Trifásicos" else "1FS"
+    nombre_template = f"templateVLF{fases}{cantidad_tramos}TR.docx"
+    return os.path.join('templates', nombre_template)
+
 def pagina_generacion_word():
     st.title("Generación de Word Automatizado - Pruebas VLF")
     st.write("Sube tu archivo JSON con los datos para el reporte:")
@@ -84,8 +94,11 @@ def pagina_generacion_word():
                 tramo_imgs[key] = None
 
     if st.button("Generar Word"):
+        
+        template_path = obtener_template_path(tipo_tramos, cantidad_tramos)
+        
         # 1) Creamos el DocxTemplate una sola vez
-        doc = DocxTemplate("templates/templateVLF3FS3TR.docx")
+        doc = DocxTemplate(template_path)
         contexto = datos.copy()
         
         mapa = StaticMap(600, 400)
