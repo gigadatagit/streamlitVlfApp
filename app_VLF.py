@@ -86,7 +86,7 @@ def pagina_generacion_word():
     tramo_imgs = {}
     for i in range(1, cantidad_tramos + 1):
         for f in fases:
-            key = f"imgPruebaTramoTrm{i}{f}"
+            key = f"imgPruebaTramoTrm{i}{f or ''}"
             uploaded_img = st.file_uploader(f"Imagen para Tramo {i} Fase {f}",
                                             type=["png", "jpg", "jpeg"], key=key)
             if uploaded_img:
