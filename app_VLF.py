@@ -77,9 +77,9 @@ def pagina_generacion_word():
     elif tipo_tramos == "Bifásicos":
         fases = ["A", "B"]
     elif tipo_tramos == "Monofásicos":
-        fases = []
+        fases = [""]
     else:
-        fases = []
+        fases = [""]
 
     # Subida de imágenes de tramos
     st.write("Sube las imágenes de las pruebas de tramos:")
