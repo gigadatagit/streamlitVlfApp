@@ -77,7 +77,7 @@ def pagina_generacion_word():
     elif tipo_tramos == "Bifásicos":
         fases = ["A", "B"]
     elif tipo_tramos == "Monofásicos":
-        fases = ["A"]
+        fases = []
     else:
         fases = []
 
@@ -87,7 +87,7 @@ def pagina_generacion_word():
     for i in range(1, cantidad_tramos + 1):
         for f in fases:
             key = f"imgPruebaTramoTrm{i}{f or ''}"
-            uploaded_img = st.file_uploader(f"Imagen para Tramo {i} Fase {f}",
+            uploaded_img = st.file_uploader(f"Imagen para Tramo {i} Fase {f or 'Única'}",
                                             type=["png", "jpg", "jpeg"], key=key)
             if uploaded_img:
                 buf = io.BytesIO(uploaded_img.read())
