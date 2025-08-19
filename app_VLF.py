@@ -59,6 +59,18 @@ def get_map_png_bytes(lon, lat, buffer_m=300, width_px=900, height_px=700, zoom=
     buf.seek(0)
     return buf.getvalue()
 
+def convertir_valores_a_mayusculas(json_data):
+    if isinstance(json_data, dict):
+        return {clave: convertir_valores_a_mayusculas(valor) for clave, valor in json_data.items()}
+    elif isinstance(json_data, list):
+        return [convertir_valores_a_mayusculas(elemento) for elemento in json_data]
+    elif isinstance(json_data, tuple):
+        return tuple(convertir_valores_a_mayusculas(elemento) for elemento in json_data)
+    elif isinstance(json_data, str):
+        return json_data.upper()
+    else:
+        return json_data
+
 def pagina_generacion_word():
     st.title("Generación de Word Automatizado - Pruebas VLF")
     st.write("Sube tu archivo JSON con los datos para el reporte:")
@@ -221,7 +233,8 @@ def pagina_generacion_word():
                 contexto[key] = ""
 
         # 4) Renderizar y ofrecer descarga
-        doc.render(contexto)
+        contexto_Mayuscula = convertir_valores_a_mayusculas(contexto)
+        doc.render(contexto_Mayuscula)
         output = io.BytesIO()
         doc.save(output)
         output.seek(0)
