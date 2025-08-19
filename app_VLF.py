@@ -5,7 +5,12 @@ from docx.shared import Cm
 import io
 import json
 import os
+import math
+import matplotlib.pyplot as plt
+import geopandas as gpd
 from datetime import datetime
+from shapely.geometry import Point
+import contextily as cx
 from staticmap import StaticMap, CircleMarker
 
 
@@ -20,6 +25,39 @@ def obtener_template_path(tipo_tramo: str, cantidad_tramos: int) -> str:
     nombre_template = f"templateVLF{fases}{cantidad_tramos}TR.docx"
     return os.path.join('templates', nombre_template)
 
+def get_map_png_bytes(lon, lat, buffer_m=300, width_px=900, height_px=700, zoom=17):
+    """
+    Genera un PNG (bytes) de un mapa satelital con marcador en (lon, lat).
+    - buffer_m: radio en metros alrededor del punto (controla "zoom").
+    - zoom: nivel de teselas (18-19 suele ser bueno).
+    """
+    # Crear punto y reproyectar a Web Mercator
+    gdf = gpd.GeoDataFrame(geometry=[Point(lon, lat)], crs="EPSG:4326").to_crs(epsg=3857)
+    pt = gdf.geometry.iloc[0]
+    
+    # Calcular bounding box
+    bbox = (pt.x - buffer_m, pt.y - buffer_m, pt.x + buffer_m, pt.y + buffer_m)
+
+    # Crear figura
+    fig, ax = plt.subplots(figsize=(width_px/100, height_px/100), dpi=100)
+    ax.set_xlim(bbox[0], bbox[2])
+    ax.set_ylim(bbox[1], bbox[3])
+
+    # Añadir basemap (Esri World Imagery)
+    cx.add_basemap(ax, source=cx.providers.Esri.WorldImagery, crs="EPSG:3857", zoom=zoom)
+
+    # Dibujar marcador
+    gdf.plot(ax=ax, markersize=40, color="red")
+
+    ax.set_axis_off()
+    plt.tight_layout(pad=0)
+
+    # Guardar a buffer en memoria
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", bbox_inches="tight", pad_inches=0)
+    plt.close(fig)
+    buf.seek(0)
+    return buf.getvalue()
 
 def pagina_generacion_word():
     st.title("Generación de Word Automatizado - Pruebas VLF")
@@ -54,8 +92,8 @@ def pagina_generacion_word():
     fecha_actual = datetime.now()
     datos["dia"] = fecha_actual.day
     meses_es = [
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+        "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"
     ]
     datos["mes"] = meses_es[fecha_actual.month - 1]
     datos["anio"] = fecha_actual.year
@@ -80,6 +118,13 @@ def pagina_generacion_word():
         fases = [""]
     else:
         fases = [""]
+        
+    st.write("Selecciona el tipo de coordenada:")
+    
+    tipo_coordenada = st.selectbox("Tipo de coordenada", ["Urbano", "Rural"], key="tipoCoordenada")
+    
+    st.session_state.data = datos
+    st.session_state.data['tipoCoordenada'] = tipo_coordenada
 
     # Subida de imágenes de tramos
     st.write("Sube las imágenes de las pruebas de tramos:")
@@ -111,16 +156,55 @@ def pagina_generacion_word():
         doc = DocxTemplate(template_path)
         contexto = datos.copy()
         
-        mapa = StaticMap(600, 400)
-        marker = CircleMarker((coordLongitud, coordLatitud,), 'red', 12)  # lon, lat
-        mapa.add_marker(marker)
+        if st.session_state.data['tipoCoordenada'] == "Urbano":
         
-        imagenMapa = mapa.render()
+            if contexto['latitud'] and contexto['longitud']:
+                try:
+                    lat = float(str(contexto['latitud']).replace(',', '.'))
+                    lon = float(str(contexto['longitud']).replace(',', '.'))
+                    mapa = StaticMap(600, 400)
+                    mapa.add_marker(CircleMarker((lon, lat), 'red', 12))
+                    img_map = mapa.render()
+                    buf_map = io.BytesIO()
+                    img_map.save(buf_map, format='PNG')
+                    buf_map.seek(0)
+                    contexto['imgMapsProyecto'] = InlineImage(doc, buf_map, Cm(18))
+                except Exception as e:
+                    st.error(f"Coordenadas inválidas para el mapa. {e}")
+            else:
+                st.error("Faltan coordenadas para el mapa.")
+                    
+        else:
+                
+            if contexto['latitud'] and contexto['longitud']:
+                try:
+                    lat = float(str(contexto['latitud']).replace(',', '.'))
+                    
+                    lon = float(str(contexto['longitud']).replace(',', '.'))
+                    
+                    st.warning(f"Prueba de coordenada en modo rural (latitud): {lat}")
+                    st.warning(f"Prueba de coordenada en modo rural (longitud): {lon}")
+                        
+                    png_bytes = get_map_png_bytes(lon, lat, buffer_m=300, zoom=17)
+                        
+                    buf_map = io.BytesIO(png_bytes)
+                    buf_map.seek(0)
+                    datos['imgMapsProyecto'] = InlineImage(doc, buf_map, Cm(18))
+                except Exception as e:
+                    st.error(f"Coordenadas inválidas para el mapa. {e}")
+            else:
+                st.error("Faltan coordenadas para el mapa.")
         
-        buf_mapa = io.BytesIO()
-        imagenMapa.save(buf_mapa, format='PNG')
-        buf_mapa.seek(0)
-        contexto["imgMapsProyecto"] = InlineImage(doc, buf_mapa, Cm(18))
+        #mapa = StaticMap(600, 400)
+        #marker = CircleMarker((coordLongitud, coordLatitud,), 'red', 12)  # lon, lat
+        #mapa.add_marker(marker)
+        
+        #imagenMapa = mapa.render()
+        
+        #buf_mapa = io.BytesIO()
+        #imagenMapa.save(buf_mapa, format='PNG')
+        #buf_mapa.seek(0)
+        #contexto["imgMapsProyecto"] = InlineImage(doc, buf_mapa, Cm(18))
 
         # 2) Tabla de tensión
         if img_path and os.path.exists(img_path):
@@ -144,7 +228,7 @@ def pagina_generacion_word():
         st.download_button(
             label="Descargar Reporte Word",
             data=output,
-            file_name="reporte_vlf.docx",
+            file_name="reporteProtocoloVLF.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
 
