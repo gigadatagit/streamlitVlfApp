@@ -189,7 +189,7 @@ def pagina_generacion_word():
                         
                     buf_map = io.BytesIO(png_bytes)
                     buf_map.seek(0)
-                    datos['imgMapsProyecto'] = InlineImage(doc, buf_map, Cm(18))
+                    contexto['imgMapsProyecto'] = InlineImage(doc, buf_map, Cm(18))
                 except Exception as e:
                     st.error(f"Coordenadas inválidas para el mapa. {e}")
             else:
